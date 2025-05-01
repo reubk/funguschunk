@@ -1,0 +1,45 @@
+pip install pillow
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
+import numpy as np
+
+# === CONFIG ===
+image_path = 'fungus map test.png'
+square_size = 50  # Customize the size of each square
+target_rgb = (165, 42, 42)  # Example: reddish-brown for parkland
+tolerance = 30  # How close a color has to be to count
+threshold_pct = 50  # % of square that must match target color
+
+# === LOAD IMAGE ===
+img = Image.open(image_path).convert('RGB')
+width, height = img.size
+draw = ImageDraw.Draw(img)
+font = ImageFont.load_default()
+
+# === FUNCTION TO CHECK IF SQUARE MEETS COLOR CRITERIA ===
+def is_target_square(square_pixels, target_rgb, tolerance, threshold_pct):
+    total_pixels = square_pixels.shape[0] * square_pixels.shape[1]
+    diff = np.abs(square_pixels - np.array(target_rgb))
+    within_tolerance = np.all(diff <= tolerance, axis=2)
+    match_pct = np.sum(within_tolerance) / total_pixels * 100
+    return match_pct >= threshold_pct
+
+# === PROCESS IMAGE ===
+image_array = np.array(img)
+square_id = 1
+for y in range(0, height, square_size):
+    for x in range(0, width, square_size):
+        square = image_array[y:y+square_size, x:x+square_size]
+        if square.shape[0] != square_size or square.shape[1] != square_size:
+            continue  # skip partial squares on edges
+        if is_target_square(square, target_rgb, tolerance, threshold_pct):
+            draw.rectangle([x, y, x+square_size, y+square_size], outline='red', width=2)
+            draw.text((x+5, y+5), str(square_id), fill='red', font=font)
+            square_id += 1
+
+# === SHOW IMAGE ===
+plt.figure(figsize=(10, 10))
+plt.imshow(img)
+plt.axis('off')
+plt.title(f'{square_id - 1} squares matched')
+plt.show()
