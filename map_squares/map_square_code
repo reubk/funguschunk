@@ -1,45 +1,114 @@
-pip install pillow
+import logging
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import numpy as np
+import os  # <-- Add this import
+
+# Log the current working directory for debugging
+logging.info(f"Current working directory: {os.getcwd()}")
 
 # === CONFIG ===
 image_path = 'fungus map test.png'
-square_size = 50  # Customize the size of each square
-target_rgb = (165, 42, 42)  # Example: reddish-brown for parkland
-tolerance = 30  # How close a color has to be to count
-threshold_pct = 50  # % of square that must match target color
+square_size = 103  # Customize the size of each square (changed from 50 to 103)
+logging.debug(f"Square size set to: {square_size}")
+# Add more eligible RGB values
+eligible_rgbs = [
+    (188, 138, 106),  # Example: reddish-brown for parkland
+    (172, 93, 57),
+    (176, 87, 58),
+    (170, 61, 35)
+]
+tolerance = 45  # How close a color has to be to count as parkland
+threshold_pct = 35  # % of square that must match target color
+font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Path to a TrueType font
+font_size = 12  # Font size for text
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # === LOAD IMAGE ===
 img = Image.open(image_path).convert('RGB')
 width, height = img.size
 draw = ImageDraw.Draw(img)
-font = ImageFont.load_default()
+logging.info(f"Image loaded with dimensions: {width}x{height}")
+
+# Load a TrueType font
+try:
+    font = ImageFont.truetype(font_path, font_size)
+except IOError:
+    print(f"TrueType font not found at {font_path}. Falling back to default font.")
+    font = ImageFont.load_default()
 
 # === FUNCTION TO CHECK IF SQUARE MEETS COLOR CRITERIA ===
-def is_target_square(square_pixels, target_rgb, tolerance, threshold_pct):
+def is_target_square(square_pixels, eligible_rgbs, tolerance, threshold_pct):
+    """
+    Check if a square meets the target color criteria for any eligible RGB.
+
+    Args:
+        square_pixels (numpy.ndarray): The pixel data of the square.
+        eligible_rgbs (list of tuple): List of eligible RGB colors.
+        tolerance (int): The tolerance for color matching.
+        threshold_pct (float): The percentage of pixels that must match.
+
+    Returns:
+        bool: True if the square meets the criteria for any eligible color, False otherwise.
+    """
     total_pixels = square_pixels.shape[0] * square_pixels.shape[1]
-    diff = np.abs(square_pixels - np.array(target_rgb))
-    within_tolerance = np.all(diff <= tolerance, axis=2)
-    match_pct = np.sum(within_tolerance) / total_pixels * 100
+    match_mask = np.zeros(square_pixels.shape[:2], dtype=bool)
+    for rgb in eligible_rgbs:
+        diff = np.abs(square_pixels - np.array(rgb))
+        within_tolerance = np.all(diff <= tolerance, axis=2)
+        match_mask = match_mask | within_tolerance
+    match_pct = np.sum(match_mask) / total_pixels * 100
     return match_pct >= threshold_pct
+
+# === FUNCTION TO PROCESS A SINGLE SQUARE ===
+def process_square(x, y, square_id):
+    """
+    Process a single square of the image.
+
+    Args:
+        x (int): The x-coordinate of the top-left corner of the square.
+        y (int): The y-coordinate of the top-left corner of the square.
+        square_id (int): The ID of the square.
+
+    Returns:
+        int: The updated square ID.
+    """
+    square = image_array[y:y+square_size, x:x+square_size]
+    if square.shape[0] != square_size or square.shape[1] != square_size:
+        return square_id  # Skip partial squares on edges
+    if is_target_square(square, eligible_rgbs, tolerance, threshold_pct):
+        draw.rectangle([x, y, x+square_size, y+square_size], outline='red', width=2)
+        draw.text((x+5, y+5), str(square_id), fill='red', font=font)
+        square_id += 1
+    return square_id
 
 # === PROCESS IMAGE ===
 image_array = np.array(img)
 square_id = 1
 for y in range(0, height, square_size):
     for x in range(0, width, square_size):
-        square = image_array[y:y+square_size, x:x+square_size]
-        if square.shape[0] != square_size or square.shape[1] != square_size:
-            continue  # skip partial squares on edges
-        if is_target_square(square, target_rgb, tolerance, threshold_pct):
-            draw.rectangle([x, y, x+square_size, y+square_size], outline='red', width=2)
-            draw.text((x+5, y+5), str(square_id), fill='red', font=font)
-            square_id += 1
+        square_id = process_square(x, y, square_id)
+        if square_id is None:
+            square_id = 1  # fallback to avoid NoneType
 
 # === SHOW IMAGE ===
 plt.figure(figsize=(10, 10))
 plt.imshow(img)
 plt.axis('off')
 plt.title(f'{square_id - 1} squares matched')
-plt.show()
+
+# Save the processed image to a directory inside the workspace
+output_path = '/workspaces/funguschunk/map_squares/processed_image.png'
+output_dir = os.path.dirname(output_path)
+os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
+
+try:
+    img.save(output_path)  # Save the processed image
+    logging.info(f"Processed image saved at: {output_path}")
+except Exception as e:
+    logging.error(f"Failed to save the processed image: {e}")
+
+# Comment out plt.show() if not needed
+# plt.show()
