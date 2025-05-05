@@ -1,3 +1,4 @@
+
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,6 +33,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 if not os.path.isfile(image_path):
     logging.error(f"Image file not found: {image_path}")
     exit(1)
+
 
 # === LOAD IMAGE ===
 img = Image.open(image_path).convert('RGB')
@@ -107,7 +109,9 @@ plt.axis('off')
 plt.title(f'{square_id - 1} squares matched')
 
 # Save the processed image to a directory inside the workspace
+
 output_path = 'processed_image.png'
+
 
 try:
     img.save(output_path)  # Save the processed image
