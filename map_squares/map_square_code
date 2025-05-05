@@ -1,14 +1,17 @@
-import logging
+
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import numpy as np
-import os  # <-- Add this import
+import os
+import logging  # <-- Add this import
 
-# Log the current working directory for debugging
-logging.info(f"Current working directory: {os.getcwd()}")
+# Set the working directory to the script's directory
+os.chdir('/Users/reub/Documents/GitHub/funguschunk')
+# Log the new working directory
+logging.info(f"New working directory: {os.getcwd()}")
 
 # === CONFIG ===
-image_path = 'fungus map test.png'
+image_path = 'fungus map no drivetime.png'
 square_size = 103  # Customize the size of each square (changed from 50 to 103)
 logging.debug(f"Square size set to: {square_size}")
 # Add more eligible RGB values
@@ -25,6 +28,12 @@ font_size = 12  # Font size for text
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Check if the image file exists before loading
+if not os.path.isfile(image_path):
+    logging.error(f"Image file not found: {image_path}")
+    exit(1)
+
 
 # === LOAD IMAGE ===
 img = Image.open(image_path).convert('RGB')
@@ -100,9 +109,9 @@ plt.axis('off')
 plt.title(f'{square_id - 1} squares matched')
 
 # Save the processed image to a directory inside the workspace
-output_path = '/workspaces/funguschunk/map_squares/processed_image.png'
-output_dir = os.path.dirname(output_path)
-os.makedirs(output_dir, exist_ok=True)  # Ensure the directory exists
+
+output_path = 'processed_image.png'
+
 
 try:
     img.save(output_path)  # Save the processed image
